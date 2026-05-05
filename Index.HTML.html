@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seamer Daily Pre-Run Inspection</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0f1923; --steel: #2c3e50; --accent: #e8a020;
+    --pass: #1a7a3a; --fail: #c0392b; --na: #7f8c8d;
+    --rule: #dce3ea; --bg: #f4f6f8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Barlow', sans-serif; background: var(--bg); color: var(--ink); }
+  header { background: var(--steel); color: #fff; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.2); }
+  .header-inner { max-width: 860px; margin: 0 auto; padding: 13px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .header-title { font-family: 'Barlow Condensed', sans-serif; font-size: 21px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+  .header-title span { color: var(--accent); }
+  .header-actions { display: flex; gap: 8px; }
+  .btn { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; padding: 7px 14px; border: none; border-radius: 3px; cursor: pointer; }
+  .btn-reset { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); }
+  .btn-print { background: var(--accent); color: #fff; }
+  .meta-bar { background: #fff; border-bottom: 2px solid var(--accent); padding: 12px 20px; }
+  .meta-inner { max-width: 860px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .meta-field label { display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #7f8c8d; margin-bottom: 3px; }
+  .meta-field input, .meta-field select { width: 100%; padding: 6px 9px; border: 1.5px solid var(--rule); border-radius: 3px; font-family: 'Barlow', sans-serif; font-size: 12px; color: var(--ink); background: #fff; }
+  .meta-field input:focus, .meta-field select:focus { outline: none; border-color: var(--accent); }
+  main { max-width: 860px; margin: 18px auto; padding: 0 20px 40px; }
+  .summary-bar { background: #fff; border: 1px solid var(--rule); border-radius: 5px; padding: 12px 16px; margin-bottom: 14px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .summary-label { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #7f8c8d; }
+  .summary-stats { display: flex; gap: 14px; flex: 1; flex-wrap: wrap; }
+  .stat { display: flex; align-items: center; gap: 5px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .dot.pass { background: var(--pass); } .dot.fail { background: var(--fail); } .dot.na { background: var(--na); } .dot.pend { background: #ccc; border: 1px solid #aaa; }
+  .stat span { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 600; }
+  .overall { font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 800; text-transform: uppercase; padding: 5px 12px; border-radius: 3px; }
+  .overall.ok  { background: #e6f4ec; color: var(--pass); }
+  .overall.bad { background: #fdecea; color: var(--fail); }
+  .overall.inc { background: #f0f2f4; color: #7f8c8d; }
+  .section { background: #fff; border: 1px solid var(--rule); border-radius: 5px; overflow: hidden; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .sec-header { background: var(--steel); color: #fff; padding: 9px 15px; display: flex; justify-content: space-between; align-items: center; }
+  .sec-title { font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; }
+  .sec-tally { font-size: 11px; opacity: 0.65; }
+  .check-item { border-bottom: 1px solid var(--rule); padding: 11px 15px; display: grid; grid-template-columns: 1fr auto auto; align-items: start; gap: 10px; }
+  .check-item:last-child { border-bottom: none; }
+  .check-item.s-pass { border-left: 3px solid var(--pass); }
+  .check-item.s-fail { border-left: 3px solid var(--fail); background: #fff9f9; }
+  .check-item.s-na   { border-left: 3px solid var(--na); }
+  .check-num    { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; color: var(--accent); margin-right: 4px; }
+  .check-label  { font-size: 13px; font-weight: 600; line-height: 1.4; }
+  .check-detail { display: block; font-size: 11px; font-weight: 400; color: #6b7c8d; margin-top: 2px; line-height: 1.45; }
+  .comment-box  { grid-column: 1 / -1; margin-top: 4px; display: none; }
+  .comment-box.show { display: block; }
+  .comment-box textarea { width: 100%; padding: 7px 9px; border: 1.5px solid var(--accent); border-radius: 3px; font-family: 'Barlow', sans-serif; font-size: 12px; resize: vertical; min-height: 48px; background: #fffdf5; }
+  .radios { display: flex; gap: 5px; flex-shrink: 0; }
+  .rb { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; padding: 5px 9px; border: 1.5px solid var(--rule); border-radius: 3px; cursor: pointer; background: #fff; color: #aaa; white-space: nowrap; }
+  .rb.p { background: var(--pass); border-color: var(--pass); color: #fff; }
+  .rb.f { background: var(--fail); border-color: var(--fail); color: #fff; }
+  .rb.n { background: var(--na);   border-color: var(--na);   color: #fff; }
+  .cb-toggle { background: none; border: 1.5px solid var(--rule); border-radius: 3px; padding: 4px 7px; cursor: pointer; font-size: 13px; color: #bbb; flex-shrink: 0; }
+  .cb-toggle.active { border-color: var(--accent); color: var(--accent); background: #fff8ee; }
+  .signoff { background: #fff; border: 1px solid var(--rule); border-radius: 5px; padding: 15px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 14px; }
+  .signoff-title { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--steel); margin-bottom: 10px; }
+  .signoff-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  .submit-area { background: #fff; border: 1px solid var(--rule); border-radius: 5px; padding: 16px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .btn-submit { width: 100%; padding: 14px; font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; background: var(--pass); color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+  .btn-submit:disabled { background: #aaa; cursor: not-allowed; }
+  .status-msg { margin-top: 12px; padding: 10px 14px; border-radius: 4px; font-size: 13px; font-weight: 500; display: none; line-height: 1.5; }
+  .status-msg.show    { display: block; }
+  .status-msg.loading { background: #eef2ff; color: #3451b2; border: 1px solid #c5d0f5; }
+  .status-msg.success { background: #e6f4ec; color: var(--pass); border: 1px solid #a8d8b8; }
+  .status-msg.error   { background: #fdecea; color: var(--fail); border: 1px solid #f5c0bc; }
+  @media print {
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .header-actions, .submit-area, .cb-toggle { display: none !important; }
+    header { position: static; box-shadow: none; }
+    main { padding: 0; margin: 0; max-width: 100%; }
+    .check-item { padding: 5px 10px; }
+    .check-label { font-size: 8.5px; } .check-detail { font-size: 7.5px; }
+    .rb { font-size: 7.5px; padding: 3px 5px; }
+    .comment-box { display: block !important; }
+    .comment-box textarea { min-height: 22px; font-size: 7.5px; border: 1px solid #ccc; background: #fff; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="header-title">Seamer <span>Daily</span> Pre-Run Inspection</div>
+    <div class="header-actions">
+      <button class="btn btn-reset" id="btn-reset">↺ Reset</button>
+      <button class="btn btn-print" id="btn-print">🖨 Print</button>
+    </div>
+  </div>
+</header>
+
+<div class="meta-bar">
+  <div class="meta-inner">
+    <div class="meta-field"><label>Date</label><input type="date" id="m-date"></div>
+    <div class="meta-field"><label>Shift</label>
+      <select id="m-shift"><option value="">Select...</option><option>Day</option><option>Swing</option><option>Night</option></select></div>
+    <div class="meta-field"><label>Seamer #</label>
+      <select id="m-seamer"><option value="">Select...</option><option>Seamer 1</option><option>Seamer 2</option><option>Seamer 3</option><option>Seamer 4</option></select></div>
+    <div class="meta-field"><label>Product / SKU</label><input type="text" id="m-product" placeholder="e.g. 202 Lager 12oz"></div>
+    <div class="meta-field"><label>Operator</label><input type="text" id="m-operator" placeholder="Full name"></div>
+  </div>
+</div>
+
+<main>
+  <div class="summary-bar">
+    <span class="summary-label">Progress</span>
+    <div class="summary-stats">
+      <div class="stat"><div class="dot pass"></div><span id="c-pass">0 Pass</span></div>
+      <div class="stat"><div class="dot fail"></div><span id="c-fail">0 Fail</span></div>
+      <div class="stat"><div class="dot na"></div><span id="c-na">0 N/A</span></div>
+      <div class="stat"><div class="dot pend"></div><span id="c-pend">0 Pending</span></div>
+    </div>
+    <div class="overall inc" id="overall">Incomplete</div>
+  </div>
+
+  <div class="section">
+    <div class="sec-header">
+      <span class="sec-title">Pre-Run Checklist</span>
+      <span class="sec-tally" id="tally"></span>
+    </div>
+
+    <div class="check-item" id="row-c1">
+      <div><span class="check-label"><span class="check-num">1.</span>Inspect tooling for wear, marks, or damage</span>
+      <span class="check-detail">Lightly brush the chuck lips and all roller profiles. Confirm there is no foreign material present.</span></div>
+      <div class="radios">
+        <button class="rb" data-id="c1" data-val="pass">✓ Pass</button>
+        <button class="rb" data-id="c1" data-val="fail">✗ Fail</button>
+        <button class="rb" data-id="c1" data-val="na">N/A</button>
+      </div>
+      <button class="cb-toggle" data-id="c1">💬</button>
+      <div class="comment-box" id="cb-c1"><textarea data-id="c1" placeholder="Comments / corrective action..."></textarea></div>
+    </div>
+
+    <div class="check-item" id="row-c2">
+      <div><span class="check-label"><span class="check-num">2.</span>Check seaming roll bearings</span>
+      <span class="check-detail">Rotate seaming rolls checking for tight/loose bearings and any grinding. Bearings should rotate approximately ½ turn when spun with 1 finger. Under greased = spins too much. Over greased = does not spin enough.</span></div>
+      <div class="radios">
+        <button class="rb" data-id="c2" data-val="pass">✓ Pass</button>
+        <button class="rb" data-id="c2" data-val="fail">✗ Fail</button>
+        <button class="rb" data-id="c2" data-val="na">N/A</button>
+      </div>
+      <button class="cb-toggle" data-id="c2">💬</button>
+      <div class="comment-box" id="cb-c2"><textarea data-id="c2" placeholder="Comments / corrective action..."></textarea></div>
+    </div>
+
+    <div class="check-item" id="row-c3">
+      <div><span class="check-label"><span class="check-num">3.</span>Check chuck bearings (seamers disabled)</span>
+      <span class="check-detail">Disable seamers and rotate chucks, checking for tight/loose bearings and any grinding.</span></div>
+      <div class="radios">
+        <button class="rb" data-id="c3" data-val="pass">✓ Pass</button>
+        <button class="rb" data-id="c3" data-val="fail">✗ Fail</button>
+        <button class="rb" data-id="c3" data-val="na">N/A</button>
+      </div>
+      <button class="cb-toggle" data-id="c3">💬</button>
+      <div class="comment-box" id="cb-c3"><textarea data-id="c3" placeholder="Comments / corrective action..."></textarea></div>
+    </div>
+
+    <div class="check-item" id="row-c4">
+      <div><span class="check-label"><span class="check-num">4.</span>Confirm chuck rotation on main die axis</span>
+      <span class="check-detail">Actuate the main die axis and confirm that the chuck rotates properly.</span></div>
+      <div class="radios">
+        <button class="rb" data-id="c4" data-val="pass">✓ Pass</button>
+        <button class="rb" data-id="c4" data-val="fail">✗ Fail</button>
+        <button class="rb" data-id="c4" data-val="na">N/A</button>
+      </div>
+      <button class="cb-toggle" data-id="c4">💬</button>
+      <div class="comment-box" id="cb-c4"><textarea data-id="c4" placeholder="Comments / corrective action..."></textarea></div>
+    </div>
+
+    <div class="check-item" id="row-c5">
+      <div><span class="check-label"><span class="check-num">5.</span>Check gearboxes — rolls toward chuck (seamers disabled)</span>
+      <span class="check-detail">Disable seamers and manually move seaming rolls towards the chuck. Confirm that the gearboxes are not tight or grinding.</span></div>
+      <div class="radios">
+        <button class="rb" data-id="c5" data-val="pass">✓ Pass</button>
+        <button class="rb" data-id="c5" data-val="fail">✗ Fail</button>
+        <button class="rb" data-id="c5" data-val="na">N/A</button>
+      </div>
+      <button class="cb-toggle" data-id="c5">💬</button>
+      <div class="comment-box" id="cb-c5"><textarea data-id="c5" placeholder="Comments / corrective action..."></textarea></div>
+    </div>
+
+    <div class="check-item" id="row-c6">
+      <div><span class="check-label"><span class="check-num">6.</span>Actuate lifters — confirm smooth single stroke</span>
+      <span class="check-detail">Actuate lifters and confirm they are moving in a single, smooth stroke with no hesitation or stuttering.</span></div>
+      <div class="radios">
+        <button class="rb" data-id="c6" data-val="pass">✓ Pass</button>
+        <button class="rb" data-id="c6" data-val="fail">✗ Fail</button>
+        <button class="rb" data-id="c6" data-val="na">N/A</button>
+      </div>
+      <button class="cb-toggle" data-id="c6">💬</button>
+      <div class="comment-box" id="cb-c6"><textarea data-id="c6" placeholder="Comments / corrective action..."></textarea></div>
+    </div>
+
+    <div class="check-item" id="row-c7">
+      <div><span class="check-label"><span class="check-num">7.</span>Check pucks — spin freely, no looseness</span>
+      <span class="check-detail">Lift the pucks and turn by hand. Confirm that they spin freely and are not loose or wobbly.</span></div>
+      <div class="radios">
+        <button class="rb" data-id="c7" data-val="pass">✓ Pass</button>
+        <button class="rb" data-id="c7" data-val="fail">✗ Fail</button>
+        <button class="rb" data-id="c7" data-val="na">N/A</button>
+      </div>
+      <button class="cb-toggle" data-id="c7">💬</button>
+      <div class="comment-box" id="cb-c7"><textarea data-id="c7" placeholder="Comments / corrective action..."></textarea></div>
+    </div>
+
+    <div class="check-item" id="row-c8">
+      <div><span class="check-label"><span class="check-num">8.</span>Chuck resistance and spring-back (seamers enabled)</span>
+      <span class="check-detail">Enable seamers and turn chucks by hand. Chuck should have resistance and spring back into original position.</span></div>
+      <div class="radios">
+        <button class="rb" data-id="c8" data-val="pass">✓ Pass</button>
+        <button class="rb" data-id="c8" data-val="fail">✗ Fail</button>
+        <button class="rb" data-id="c8" data-val="na">N/A</button>
+      </div>
+      <button class="cb-toggle" data-id="c8">💬</button>
+      <div class="comment-box" id="cb-c8"><textarea data-id="c8" placeholder="Comments / corrective action..."></textarea></div>
+    </div>
+
+    <div class="check-item" id="row-c9">
+      <div><span class="check-label"><span class="check-num">9.</span>Run 2nd op seam test — no can present</span>
+      <span class="check-detail">Run a 2nd operation seam test without a can. Confirm that the rollers are not making contact with the chuck.</span></div>
+      <div class="radios">
+        <button class="rb" data-id="c9" data-val="pass">✓ Pass</button>
+        <button class="rb" data-id="c9" data-val="fail">✗ Fail</button>
+        <button class="rb" data-id="c9" data-val="na">N/A</button>
+      </div>
+      <button class="cb-toggle" data-id="c9">💬</button>
+      <div class="comment-box" id="cb-c9"><textarea data-id="c9" placeholder="Comments / corrective action..."></textarea></div>
+    </div>
+
+  </div>
+
+  <div class="signoff">
+    <div class="signoff-title">Sign-Off</div>
+    <div class="signoff-grid">
+      <div class="meta-field"><label>Operator Signature / Initials</label><input type="text" id="s-op" placeholder="Sign or initial"></div>
+      <div class="meta-field"><label>Time Completed</label><input type="time" id="s-time"></div>
+      <div class="meta-field"><label>Line Released?</label>
+        <select id="s-release"><option value="">Select...</option><option>Yes — Released</option><option>No — Issues Pending</option><option>Conditional — Monitor Closely</option></select></div>
+    </div>
+  </div>
+
+  <div class="submit-area">
+    <button class="btn-submit" id="submit-btn">✓ Submit Inspection</button>
+    <div class="status-msg" id="status-msg"></div>
+  </div>
+</main>
+
+<script>
+(function() {
+  var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw0g7k4TyAmwAG2wolQwEkGuxicU2f56m1nvALt9YxJyZ42iHJTtGJyZvsD8qWIACY/exec';
+  var IDS = ['c1','c2','c3','c4','c5','c6','c7','c8','c9'];
+  var LABELS = {
+    c1:'Inspect tooling for wear, marks, or damage',
+    c2:'Check seaming roll bearings',
+    c3:'Check chuck bearings (seamers disabled)',
+    c4:'Confirm chuck rotation on main die axis',
+    c5:'Check gearboxes — rolls toward chuck (seamers disabled)',
+    c6:'Actuate lifters — confirm smooth single stroke',
+    c7:'Check pucks — spin freely, no looseness',
+    c8:'Chuck resistance and spring-back (seamers enabled)',
+    c9:'Run 2nd op seam test — no can present'
+  };
+  var state = {};
+  IDS.forEach(function(id) { state[id] = { status: null, comment: '' }; });
+
+  // Set today's date
+  var dateEl = document.getElementById('m-date');
+  if (dateEl) {
+    var today = new Date();
+    var y = today.getFullYear();
+    var m = String(today.getMonth()+1).padStart(2,'0');
+    var d = String(today.getDate()).padStart(2,'0');
+    dateEl.value = y + '-' + m + '-' + d;
+  }
+
+  updateSummary();
+
+  // ── Event delegation — one listener on document handles everything ──
+  document.addEventListener('click', function(e) {
+    var t = e.target;
+
+    // Pass/Fail/NA buttons
+    if (t.classList.contains('rb') && t.dataset.id && t.dataset.val) {
+      setStatus(t.dataset.id, t.dataset.val);
+      return;
+    }
+
+    // Comment toggle buttons
+    if (t.classList.contains('cb-toggle') && t.dataset.id) {
+      toggleComment(t.dataset.id);
+      return;
+    }
+
+    // Reset button
+    if (t.id === 'btn-reset') {
+      resetForm();
+      return;
+    }
+
+    // Print button
+    if (t.id === 'btn-print') {
+      window.print();
+      return;
+    }
+
+    // Submit button
+    if (t.id === 'submit-btn') {
+      submitInspection();
+      return;
+    }
+  });
+
+  // Comment text saving
+  document.addEventListener('input', function(e) {
+    var t = e.target;
+    if (t.tagName === 'TEXTAREA' && t.dataset.id) {
+      state[t.dataset.id].comment = t.value;
+    }
+  });
+
+  function setStatus(id, val) {
+    state[id].status = val;
+    var row = document.getElementById('row-' + id);
+    row.className = 'check-item s-' + val;
+    var btns = row.querySelectorAll('.rb');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].className = 'rb';
+      if (btns[i].dataset.val === val) btns[i].classList.add(val[0]);
+    }
+    if (val === 'fail') {
+      document.getElementById('cb-' + id).classList.add('show');
+      var tog = row.querySelector('.cb-toggle');
+      if (tog) tog.classList.add('active');
+    }
+    updateSummary();
+  }
+
+  function toggleComment(id) {
+    var cb  = document.getElementById('cb-' + id);
+    var row = document.getElementById('row-' + id);
+    var tog = row.querySelector('.cb-toggle');
+    cb.classList.toggle('show');
+    if (tog) tog.classList.toggle('active', cb.classList.contains('show'));
+  }
+
+  function updateSummary() {
+    var pass=0, fail=0, na=0, pend=0;
+    IDS.forEach(function(id) {
+      var s = state[id].status;
+      if (s==='pass') pass++;
+      else if (s==='fail') fail++;
+      else if (s==='na') na++;
+      else pend++;
+    });
+    document.getElementById('c-pass').textContent = pass + ' Pass';
+    document.getElementById('c-fail').textContent = fail + ' Fail';
+    document.getElementById('c-na').textContent   = na   + ' N/A';
+    document.getElementById('c-pend').textContent = pend + ' Pending';
+    document.getElementById('tally').textContent  = (pass+fail+na) + '/' + IDS.length + ' checked' + (fail > 0 ? ' · ' + fail + ' fail' : '');
+    var el = document.getElementById('overall');
+    if (pend > 0)      { el.textContent = 'Incomplete';     el.className = 'overall inc'; }
+    else if (fail > 0) { el.textContent = '⚠ Issues Found'; el.className = 'overall bad'; }
+    else               { el.textContent = '✓ All Clear';    el.className = 'overall ok';  }
+  }
+
+  function resetForm() {
+    if (!confirm('Reset checklist?')) return;
+    IDS.forEach(function(id) {
+      state[id] = { status: null, comment: '' };
+      var row = document.getElementById('row-' + id);
+      row.className = 'check-item';
+      var btns = row.querySelectorAll('.rb');
+      for (var i = 0; i < btns.length; i++) btns[i].className = 'rb';
+      var cb = document.getElementById('cb-' + id);
+      cb.classList.remove('show');
+      cb.querySelector('textarea').value = '';
+      var tog = row.querySelector('.cb-toggle');
+      if (tog) tog.classList.remove('active');
+    });
+    ['s-op','s-time','m-product','m-operator'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.value = '';
+    });
+    ['m-shift','m-seamer','s-release'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.value = '';
+    });
+    var dateEl = document.getElementById('m-date');
+    if (dateEl) {
+      var today = new Date();
+      var y = today.getFullYear();
+      var mo = String(today.getMonth()+1).padStart(2,'0');
+      var d = String(today.getDate()).padStart(2,'0');
+      dateEl.value = y + '-' + mo + '-' + d;
+    }
+    var btn = document.getElementById('submit-btn');
+    btn.disabled = false; btn.textContent = '✓ Submit Inspection'; btn.style.background = '';
+    document.getElementById('status-msg').className = 'status-msg';
+    updateSummary();
+  }
+
+  function submitInspection() {
+    var operator = document.getElementById('m-operator').value.trim();
+    var seamer   = document.getElementById('m-seamer').value;
+    var date     = document.getElementById('m-date').value;
+
+    if (!operator || !seamer || !date) {
+      showStatus('error', '⚠ Please fill in Date, Seamer #, and Operator name before submitting.');
+      return;
+    }
+    var pending = IDS.filter(function(id) { return !state[id].status; });
+    if (pending.length > 0) {
+      showStatus('error', '⚠ ' + pending.length + ' item(s) still need a Pass / Fail / N/A before submitting.');
+      return;
+    }
+
+    var btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    showStatus('loading', 'Saving to Google Sheets…');
+
+    var failCount = IDS.filter(function(id) { return state[id].status === 'fail'; }).length;
+    var payload = {
+      timestamp:     new Date().toLocaleString(),
+      date:          date,
+      shift:         document.getElementById('m-shift').value,
+      seamer:        seamer,
+      product:       document.getElementById('m-product').value,
+      operator:      operator,
+      operatorSO:    document.getElementById('s-op').value,
+      timeCompleted: document.getElementById('s-time').value,
+      lineReleased:  document.getElementById('s-release').value,
+      result:        failCount > 0 ? 'Issues Found' : 'All Clear',
+      checks:        IDS.map(function(id) {
+        return { label: LABELS[id], status: (state[id].status || '').toUpperCase(), comment: state[id].comment || '' };
+      })
+    };
+
+    fetch(SCRIPT_URL, {
+      method:  'POST',
+      mode:    'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload)
+    }).then(function() {
+      showStatus('success', '✓ Inspection saved to Google Sheets.');
+      btn.textContent      = '✓ Submitted';
+      btn.style.background = '#155f2d';
+    }).catch(function() {
+      showStatus('error', '✗ Could not reach Google Sheets. Check your internet connection and try again.');
+      btn.disabled = false;
+    });
+  }
+
+  function showStatus(type, msg) {
+    var el = document.getElementById('status-msg');
+    el.className   = 'status-msg show ' + type;
+    el.textContent = msg;
+  }
+
+})();
+</script>
+</body>
+</html>
